@@ -1,0 +1,50 @@
+services:
+  qwen3-8-27b-sglang:
+    image: lmsysorg/sglang:latest  # SGLang 官方镜像
+    container_name: qwen3-8-27b-sglang
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - SAFETENSORS_FAST_GPU=1
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - /home/huggingface/hf_model:/models
+      - /home/huggingface/hf_cache:/root/.cache/huggingface
+    shm_size: 64g
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    security_opt:
+      - seccomp=unconfined
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ['0', '1', '2', '3', '4', '5', '6', '7']
+              capabilities: [gpu]
+              
+    command: >
+      sglang serve
+      --model-path /models/Qwen/Qwen3.8-27B
+      --trust-remote-code
+      --tp-size 8
+      --host 0.0.0.0
+      --port 8000
+      --api-key sk-cdutwxc2026qwen
+      --kv-cache-dtype fp8_e4m3
+      --attention-backend flashinfer
+      --served-model-name qwen3.8-27b
+      --reasoning-parser qwen3
+      --tool-call-parser qwen3_coder
+      --mem-fraction-static 0.8
+      --speculative-algorithm EAGLE
+      --speculative-num-steps 3
+      --speculative-eagle-topk 1
+      --speculative-num-draft-tokens 4
+      --enable-linear-replayssm-spec
+      --mamba-radix-cache-strategy extra_buffer
+      --mamba-ssm-dtype float32
+      --context-length 262144

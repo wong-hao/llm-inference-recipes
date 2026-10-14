@@ -1,0 +1,53 @@
+services:
+  z-image-turbo-vllm-omni:
+    image: vllm/vllm-omni:latest
+    container_name: z-image-turbo-vllm-omni
+
+    restart: always
+
+    # 暴露端口
+    ports:
+      - "8000:8000"
+
+    # 环境变量：对应原命令开头的 SAFETENSORS_FAST_GPU=1
+    environment:
+      - SAFETENSORS_FAST_GPU=1
+      - NVIDIA_VISIBLE_DEVICES=all
+      
+    # 挂载模型和缓存
+    volumes:
+      # 确保本地存在 models 文件夹
+      - /home/huggingface/hf_model:/models
+      - /home/huggingface/hf_cache:/root/.cache/huggingface
+
+    # 共享内存：vLLM 多卡通信需要较大的共享内存
+    shm_size: 64g
+
+    # 文件描述符限制
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+
+    # 资源限制：建议移除 mem_limit 或设置为更高值，80g 对于推理可能过小
+    # mem_limit: 200g 
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['0', '1', '2', '3', '4', '5']
+            capabilities: [gpu]
+
+
+    command: >
+      vllm serve /models/Tongyi-MAI/Z-Image-Turbo
+      --trust-remote-code
+      --omni
+      --tensor-parallel-size 2
+      --gpu-memory-utilization 0.92
+      --served-model-name z-image-turbo
+      --api-key sk-cdutwxc2026tongyiimage
+      --host 0.0.0.0
+      --port 8000

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NODE_RANK=0
+NODE0_IP="202.115.138.84"
+LOCAL_IP="202.115.138.84"
+NIC_NAME="bond0"
+MODEL_PATH="/data/DeepSeek-V4.1-Flash-w8a8/"
+
+# Allow time for weight loading and graph capture on large models.
+export VLLM_ENGINE_READY_TIMEOUT_S="${VLLM_ENGINE_READY_TIMEOUT_S:-3600}"
+export HCCL_IF_IP="$LOCAL_IP"
+export GLOO_SOCKET_IFNAME="$NIC_NAME"
+export TP_SOCKET_IFNAME="$NIC_NAME"
+export HCCL_SOCKET_IFNAME="$NIC_NAME"
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+
+# Runtime env (aligned with Ascend-SACT/DeepSeek-V4.1-Flash official node scripts).
+export HCCL_BUFFSIZE=1024
+export OMP_PROC_BIND=false
+export OMP_NUM_THREADS=10
+export PYTORCH_NPU_ALLOC_CONF=expandable_segments:True
+export HCCL_OP_EXPANSION_MODE="AIV"
+export TASK_QUEUE_ENABLE=1
+export VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS=3000
+export HCCL_CONNECT_TIMEOUT=1200
+
+if [[ -f /usr/lib/aarch64-linux-gnu/libjemalloc.so.2 ]]; then
+  export LD_PRELOAD="/usr/lib/aarch64-linux-gnu/libjemalloc.so.2${LD_PRELOAD:+:$LD_PRELOAD}"
+fi
+
+HEADLESS_ARGS=()
+if [[ "$NODE_RANK" != "0" ]]; then
+  HEADLESS_ARGS+=(--headless --data-parallel-start-rank "$NODE_RANK")
+fi
+
+vllm serve "$MODEL_PATH" \
+  --host 0.0.0.0 \
+  --port 8026 \
+  "${HEADLESS_ARGS[@]}" \
+  --data-parallel-address "$NODE0_IP" \
+  --data-parallel-rpc-port 13399 \
+  --data-parallel-size 2 \
+  --data-parallel-size-local 1 \
+  --tensor-parallel-size 8 \
+  --enable-expert-parallel \
+  --served-model-name deepseek-v41 \
+  --max-model-len 1048576 \
+  --max-num-batched-tokens 4096 \
+  --max-num-seqs 32 \
+  --gpu-memory-utilization 0.90 \
+  --block-size 128 \
+  --tokenizer-mode deepseek_v41 \
+  --reasoning-parser deepseek_v41 \
+  --tool-call-parser deepseek_v41 \
+  --enable-auto-tool-choice \
+  --trust-remote-code \
+  --model-loader-extra-config '{"enable_multithread_load":true,"num_threads":128}' \
+  --safetensors-load-strategy lazy \
+  --enable-prefix-caching \
+  --quantization ascend \
+  --additional-config '{"enable_cpu_binding":true,"ascend_compilation_config":{"enable_npugraph_ex":false,"enable_static_kernel":false}}' \
+  --speculative-config '{"method":"dspark","num_speculative_tokens":5,"enforce_eager":true}' \
+  --compilation-config '{"cudagraph_mode":"FULL_DECODE_ONLY"}' \
+  --async-scheduling

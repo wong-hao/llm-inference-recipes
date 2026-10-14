@@ -1,0 +1,17 @@
+vllm bench serve --backend openai-chat \
+--model deepseek-v41 \
+--endpoint /v1/chat/completions \
+--tokenizer /data/DeepSeek-V4.1-Flash-w8a8/ \
+--dataset-name random \
+--num-prompts 4 \
+--max-concurrency 4 \
+--random-input-len 8192 \
+--random-output-len 4096 \
+--port 8026 \
+--host 202.115.138.84 \
+--num-warmups 0 \
+--ignore-eos \
+--request-rate inf \
+--seed 123456 \
+--percentile-metrics "ttft,tpot,itl,e2el" \
+--metric-percentiles "90,99"

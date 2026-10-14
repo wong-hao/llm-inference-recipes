@@ -1,0 +1,55 @@
+services:
+  qwen3-tts-12hz-1.7b-customvoice-vllm-omni:
+    image: vllm/vllm-omni:v0.20.0
+    container_name: qwen3-tts-12hz-1.7b-customvoice-vllm-omni
+
+    restart: always
+
+    # 暴露端口
+    ports:
+      - "8091:8091"
+
+    # 环境变量：对应原命令开头的 SAFETENSORS_FAST_GPU=1
+    environment:
+      - SAFETENSORS_FAST_GPU=1
+      - NVIDIA_VISIBLE_DEVICES=4,5,6,7
+      
+    # 挂载模型和缓存
+    volumes:
+      # 确保本地存在 models 文件夹
+      - /home/huggingface/hf_model:/models
+      - /home/huggingface/hf_cache:/root/.cache/huggingface
+
+    # 共享内存：vLLM 多卡通信需要较大的共享内存
+    shm_size: 64g
+
+    # 文件描述符限制
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
+
+    # 资源限制：建议移除 mem_limit 或设置为更高值，80g 对于推理可能过小
+    # mem_limit: 200g 
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+          - driver: nvidia
+            device_ids: ['4','5']
+            capabilities: [gpu]
+
+
+    command: >
+      vllm-omni serve /models/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+      --deploy-config vllm_omni/deploy/qwen3_tts.yaml
+      --omni
+      --port 8091
+      --trust-remote-code
+      --enforce-eager
+      --tensor-parallel-size 2
+      --gpu-memory-utilization 0.3
+      --served-model-name qwen3-tts-12hz-1.7b-customvoice
+      --api-key sk-cdutwxc2026qwentts
+      --host 0.0.0.0
