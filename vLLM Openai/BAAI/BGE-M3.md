@@ -30,7 +30,7 @@ services:
         reservations:
           devices:
           - driver: nvidia
-            device_ids: ['0']  # BGE-M3 显存占用极低，一张 L20 绰绰有余，无需 8 卡
+            device_ids: ['0']
             capabilities: [gpu]
 
     command: >
@@ -42,6 +42,6 @@ services:
       --max-model-len 8192
       --gpu-memory-utilization 0.3
       --served-model-name bge-m3
-      --api-key sk-cdutwxc2026bge
+      --api-key sk-cdutwxc2026bgeembedding
       --host 0.0.0.0
       --port 8000
