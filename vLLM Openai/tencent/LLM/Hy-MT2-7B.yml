@@ -54,5 +54,7 @@ services:
       --served-model-name hy-mt2-7b
       --api-key sk-cdutwxc2026tencentts
       --enforce-eager
+      --enable-prefix-caching 
+      --enable-prompt-tokens-details
       --host 0.0.0.0
       --port 8000

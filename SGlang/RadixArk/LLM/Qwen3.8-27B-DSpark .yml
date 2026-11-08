@@ -1,13 +1,15 @@
 services:
-  qwen3-8-27b-sglang:
+  qwen3-8-27b-dspark-sglang:
     image: lmsysorg/sglang:latest  # SGLang 官方镜像
-    container_name: qwen3-8-27b-sglang
+    container_name: qwen3-8-27b-dspark-sglang
     restart: always
     ports:
       - "8000:8000"
     environment:
       - SAFETENSORS_FAST_GPU=1
       - NVIDIA_VISIBLE_DEVICES=all
+      - PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+      - SGLANG_RAGGED_VERIFY_MODE=static
     volumes:
       - /home/huggingface/hf_model:/models
       - /home/huggingface/hf_cache:/root/.cache/huggingface
@@ -34,17 +36,20 @@ services:
       --host 0.0.0.0
       --port 8000
       --api-key sk-cdutwxc2026qwen
-      --kv-cache-dtype fp8_e4m3
       --attention-backend flashinfer
       --served-model-name qwen3.8-27b
       --reasoning-parser qwen3
       --tool-call-parser qwen3_coder
       --mem-fraction-static 0.8
-      --speculative-algorithm EAGLE
-      --speculative-num-steps 3
+      --speculative-algorithm DSPARK
+      --speculative-draft-model-path /models/RadixArk/Qwen3.8-27B-DSpark
+      --speculative-draft-attention-backend flashinfer
+      --speculative-draft-model-quantization unquant
+      --speculative-draft-attention-backend flashinfer
+      --speculative-dspark-block-size 7
+      --speculative-num-steps 1
       --speculative-eagle-topk 1
-      --speculative-num-draft-tokens 4
-      --enable-linear-replayssm-spec
       --mamba-radix-cache-strategy extra_buffer
       --mamba-ssm-dtype float32
+      --enable-cache-report
       --context-length 262144
